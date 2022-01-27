@@ -218,8 +218,8 @@ val_dataset.parse_csv(images_dir=images_dir,
 # option in the constructor, because in that cas the images are in memory already anyway. If you don't
 # want to create HDF5 datasets, comment out the subsequent two function calls.
 if load_images_in_mem_flag == False:
-    train_data_path = 'dataset_heavy_machine_train.h5'
-    val_data_path = 'dataset_heavy_machine_val.h5'
+    train_data_path = 'dataset_heavy_machine_train_min.h5'
+    val_data_path = 'dataset_heavy_machine_val_min.h5'
     if not os.path.exists(train_data_path) or not os.path.exists(val_data_path):
         train_dataset.create_hdf5_dataset(file_path=train_data_path,
                                         resize=False,
@@ -368,8 +368,8 @@ callbacks = [model_checkpoint,
 
 # If you're resuming a previous training, set `initial_epoch` and `final_epoch` accordingly.
 initial_epoch   = 0
-final_epoch     = 3
-steps_per_epoch = 1000
+final_epoch     = 30
+steps_per_epoch = 100
 
 history = new_model.fit_generator(generator=train_generator,
                               steps_per_epoch=steps_per_epoch,

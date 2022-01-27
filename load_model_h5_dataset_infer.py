@@ -26,7 +26,9 @@ from data_generator.object_detection_2d_misc_utils import apply_inverse_transfor
 
 #load model
 # TODO: Set the path to the `.h5` file of the model to be loaded.
-model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_epoch-02_loss-6.1302_val_loss-6.1017.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
+model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
+
+# model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_epoch-02_loss-6.1302_val_loss-6.1017.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
 
 # We need to create an SSDLoss object in order to pass that to the model loader.
 ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
@@ -96,9 +98,9 @@ normalize_coords = True
 
 # for new_layer, layer in zip(new_model.layers[1:], model.layers[1:]):
 #     new_layer.set_weights(layer.get_weights())
-
+# /home/linuxosprey/ow_keras_ssd/data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5
 #load  data set
-dataset = DataGenerator(hdf5_dataset_path='../data/datasets/heavy_machine/dataset_heavy_machine_train.h5')
+dataset = DataGenerator(hdf5_dataset_path='dataset_heavy_machine_train_min.h5')
 
 img_width = 2048
 img_height = 1500
@@ -106,7 +108,7 @@ convert_to_3_channels = ConvertTo3Channels()
 resize = Resize(height=img_height, width=img_width)
 
 generator = dataset.generate(batch_size=1,
-                                         shuffle=True,
+                                         shuffle=False,
                                          transformations=[convert_to_3_channels,
                                                           resize],
                                          label_encoder=None,
