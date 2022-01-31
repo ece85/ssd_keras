@@ -189,6 +189,49 @@ adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 
 ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 
+#freeze certain layers.
+new_model.summary()
+classifier_names = ['conv4_3_norm_mbox_conf',
+                    'fc7_mbox_conf',
+                    'conv6_2_mbox_conf',
+                    'conv7_2_mbox_conf',
+                    'conv8_2_mbox_conf',
+                    'conv9_2_mbox_conf']
+freeze_layers = False
+if freeze_layers:
+    layers_to_be_frozen = classifier_names
+    for layer in new_model.layers:
+        if layer.name in layers_to_be_frozen:
+            layer.trainable = True
+            print('training layer ', layer.trainable, ' , ', layer.name)
+            # print('layer input = ', layer.input)
+        else:
+            layer_freezed = False
+            layer_input = str(layer.input)
+            # print('layer input = ' , layer_input)
+            for l in layers_to_be_frozen:
+
+                if layer_input.find(l)>=0:
+                    layer.trainable = True
+                    layer_freezed = True
+                    layers_to_be_frozen.append(layer.name)
+                    break
+            if not layer_freezed:
+                layer.trainable = False
+
+
+    for layer in new_model.layers:
+        if layer.name in layers_to_be_frozen and layer.trainable==False:
+            print(' layer not frozen and should be: ', layer.name)
+            sys.exit(-1)
+
+
+
+    for layer in new_model.layers:
+        print('POST layer ', layer.trainable, ' , ', layer.name)
+
+
+# compile the model
 new_model.compile(optimizer=adam, loss=ssd_loss.compute_loss)
 
 
@@ -197,11 +240,11 @@ train_dataset = DataGenerator(load_images_into_memory=load_images_in_mem_flag, h
 val_dataset = DataGenerator(load_images_into_memory=load_images_in_mem_flag, hdf5_dataset_path=None)
 
 #Images
-images_dir = '../data_hm/'
+images_dir = '../data/training_data_412_414/'
 
 # Ground truth
-train_labels_filename = '../data_hm/heavy_machine_labels_train_min.csv'
-val_labels_filename   = '../data_hm/heavy_machine_labels_train_min.csv'
+train_labels_filename = images_dir + 'labels_HeavyMachine_train.csv'#all cranes heavy machines from a incomplete version of all tagged data (bad data set for training..i think)  ../data_hm/heavy_machine_labels_train.csv'
+val_labels_filename   = images_dir + 'labels_HeavyMachine_val.csv'
 
 train_dataset.parse_csv(images_dir=images_dir,
                         labels_filename=train_labels_filename,
@@ -218,8 +261,8 @@ val_dataset.parse_csv(images_dir=images_dir,
 # option in the constructor, because in that cas the images are in memory already anyway. If you don't
 # want to create HDF5 datasets, comment out the subsequent two function calls.
 if load_images_in_mem_flag == False:
-    train_data_path = 'dataset_heavy_machine_train_min.h5'
-    val_data_path = 'dataset_heavy_machine_val_min.h5'
+    train_data_path = 'dataset_HeavyMachine_412_414_train.h5'
+    val_data_path = 'dataset_HeavyMachine_412_414_val.h5'
     if not os.path.exists(train_data_path) or not os.path.exists(val_data_path):
         train_dataset.create_hdf5_dataset(file_path=train_data_path,
                                         resize=False,
@@ -291,8 +334,7 @@ ssd_input_encoder = SSDInputEncoder(img_height=new_img_height,
 # transformations=[ssd_data_augmentation],
 train_generator = train_dataset.generate(batch_size=batch_size,
                                          shuffle=True,
-                                         transformations=[convert_to_3_channels,
-                                                      resize],
+                                         transformations=[ssd_data_augmentation],
                                          label_encoder=ssd_input_encoder,
                                          returns={'processed_images',
                                                   'encoded_labels'},
@@ -327,7 +369,7 @@ print("Number of images in the validation dataset:\t{:>6}".format(val_dataset_si
 # Define a learning rate schedule.
 
 def lr_schedule(epoch):
-    if epoch < 80:
+    if epoch < 25:
         return 0.001
     elif epoch < 100:
         return 0.0001
@@ -338,7 +380,7 @@ def lr_schedule(epoch):
 # Define model callbacks.
 
 # TODO: Set the filepath under which you want to save the model.
-model_checkpoint = ModelCheckpoint(filepath='../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
+model_checkpoint = ModelCheckpoint(filepath='../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_412_414_NoFrozenLayers_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
                                    monitor='val_loss',
                                    verbose=1,
                                    save_best_only=True,
@@ -368,7 +410,7 @@ callbacks = [model_checkpoint,
 
 # If you're resuming a previous training, set `initial_epoch` and `final_epoch` accordingly.
 initial_epoch   = 0
-final_epoch     = 30
+final_epoch     = 40
 steps_per_epoch = 100
 
 history = new_model.fit_generator(generator=train_generator,

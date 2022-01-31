@@ -1,3 +1,4 @@
+from distutils import extension
 import sys
 from keras import backend as K
 from keras.models import load_model
@@ -26,7 +27,8 @@ from data_generator.object_detection_2d_misc_utils import apply_inverse_transfor
 
 #load model
 # TODO: Set the path to the `.h5` file of the model to be loaded.
-model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
+#trained on one image, good detections on that img.'  ../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5'
+model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_412_414_NoFrozenLayers_epoch-40_loss-5.0862_val_loss-4.9173.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
 
 # model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_epoch-02_loss-6.1302_val_loss-6.1017.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
 
@@ -100,7 +102,7 @@ normalize_coords = True
 #     new_layer.set_weights(layer.get_weights())
 # /home/linuxosprey/ow_keras_ssd/data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5
 #load  data set
-dataset = DataGenerator(hdf5_dataset_path='dataset_heavy_machine_train_min.h5')
+dataset = DataGenerator(hdf5_dataset_path='dataset_HeavyMachine_412_414_train.h5')
 
 img_width = 2048
 img_height = 1500
@@ -122,7 +124,6 @@ generator = dataset.generate(batch_size=1,
 for n in range(0,100):
     print('n=',n)
     batch_images, batch_filenames, batch_inverse_transforms, batch_original_images, batch_original_labels = next(generator)
-
     print('batch_images shape = ', batch_images.shape)
 
     print('predict call')
@@ -181,8 +182,8 @@ for n in range(0,100):
         label = '{}: {:.2f}'.format(classes[int(box[0])], box[1])
         current_axis.add_patch(plt.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, color='blue', fill=False, linewidth=2))  
         current_axis.text(xmin, ymin, label, size='x-large', color='white', bbox={'facecolor':'blue', 'alpha':1.0})
-
-
-    img_filename = 'ssd3_after_scaled_scales_epochs_'+ str(n) +'.png'
+    
+    
+    img_filename = 'predictions_noFrozenLayers_412_414_'+ str(n) +'.png'
     print('saving image ', img_filename)
     fig.savefig(img_filename)
