@@ -25,10 +25,13 @@ from data_generator.object_detection_2d_photometric_ops import ConvertTo3Channel
 from data_generator.object_detection_2d_geometric_ops import Resize
 from data_generator.object_detection_2d_misc_utils import apply_inverse_transforms
 
+
+from eval_utils.average_precision_evaluator import Evaluator
+
 #load model
 # TODO: Set the path to the `.h5` file of the model to be loaded.
 #trained on one image, good detections on that img.'  ../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5'
-model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_412_414_NoFrozenLayers_epoch-40_loss-5.0862_val_loss-4.9173.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
+model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_412_414_enhanced_forReal_epoch-12_loss-4.4861_val_loss-6.9547.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
 
 # model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_epoch-02_loss-6.1302_val_loss-6.1017.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
 
@@ -37,7 +40,6 @@ ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 
 K.clear_session() # Clear previous models from memory.
 
-print('!!!!!!!!!!!!!!!!!!!!!! loading model')
 try:
     model = load_model(model_path, custom_objects={'AnchorBoxes': AnchorBoxes,
                                                 'L2Normalization': L2Normalization,
@@ -50,8 +52,6 @@ except ImportError:
     print('import error! for ', model_path)
     sys.exit(1)
 
-print('!!!!!!!!!!!!!!!!!!!!!!!! done loading model')
-# sys.exit(1)
 
 # img_height = 300 # Height of the input images
 # img_width = 300 # Width of the input images
@@ -102,7 +102,7 @@ normalize_coords = True
 #     new_layer.set_weights(layer.get_weights())
 # /home/linuxosprey/ow_keras_ssd/data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5
 #load  data set
-dataset = DataGenerator(hdf5_dataset_path='dataset_HeavyMachine_412_414_train.h5')
+dataset = DataGenerator(hdf5_dataset_path='dataset_HeavyMachine.h5')
 
 img_width = 2048
 img_height = 1500
@@ -120,8 +120,68 @@ generator = dataset.generate(batch_size=1,
                                                   'original_images',
                                                   'original_labels'},
                                          keep_images_without_gt=False)
+
+
+
+model_mode = 'training'
+n_classes = 1
+evaluator = Evaluator(model=model,
+                      n_classes=n_classes,
+                      data_generator=dataset,
+                      model_mode=model_mode)
+
+results = evaluator(img_height=img_height,
+                    img_width=img_width,
+                    batch_size=1,
+                    data_generator_mode='resize',
+                    round_confidences=False,
+                    matching_iou_threshold=0.4,
+                    border_pixels='include',
+                    sorting_algorithm='quicksort',
+                    average_precision_mode='sample',
+                    num_recall_points=11,
+                    ignore_neutral_boxes=True,
+                    return_precisions=True,
+                    return_recalls=True,
+                    return_average_precisions=True,
+                    verbose=True)
+
+mean_average_precision, average_precisions, precisions, recalls = results
+classes = ['thing']
+print('average precions len = ' , len(average_precisions))
+print(' precisions =',np.array(precisions).shape)
+
+for i in range(1, len(average_precisions)):
+    print("{:<14}{:<6}{}".format('class:', str(i), ' AP', round(average_precisions[i], 3)))
+    # print("{:<14}{:<6}{}".format(classes[i], 'AP', round(average_precisions[i], 3)))
+
+print()
+print("{:<14}{:<6}{}".format('','mAP', round(mean_average_precision, 3)))
+
+
+m = max((n_classes + 1) // 2, 2)
+n = 2
+
+fig, cells = plt.subplots(m, n, figsize=(n*8,m*8))
+for i in range(m):
+    for j in range(n):
+        if n*i+j+1 > n_classes: break
+        cells[i, j].plot(recalls[n*i+j+1], precisions[n*i+j+1], color='blue', linewidth=1.0)
+        cells[i, j].set_xlabel('recall', fontsize=14)
+        cells[i, j].set_ylabel('precision', fontsize=14)
+        cells[i, j].grid(True)
+        cells[i, j].set_xticks(np.linspace(0,1,11))
+        cells[i, j].set_yticks(np.linspace(0,1,11))
+        cells[i, j].set_title("{}, AP: {:.3f}".format( n*i+j+1, average_precisions[n*i+j+1]), fontsize=16)
+
+
+
+fig.savefig('train414_412_enhanced_recall_vs_precision_curve.png')
+
+
+
 #predict
-for n in range(0,100):
+for n in range(dataset.dataset_size):
     print('n=',n)
     batch_images, batch_filenames, batch_inverse_transforms, batch_original_images, batch_original_labels = next(generator)
     print('batch_images shape = ', batch_images.shape)
@@ -131,7 +191,7 @@ for n in range(0,100):
     print('decode_detections call')
     print('y_pred_shape = ' , y_pred.shape)
     y_pred_decoded = decode_detections(y_pred,
-                                   confidence_thresh=0.2,
+                                   confidence_thresh=0.4,
                                    iou_threshold=0.4,
                                    top_k=200,
                                    normalize_coords=normalize_coords,
@@ -184,6 +244,6 @@ for n in range(0,100):
         current_axis.text(xmin, ymin, label, size='x-large', color='white', bbox={'facecolor':'blue', 'alpha':1.0})
     
     
-    img_filename = 'predictions_noFrozenLayers_412_414_'+ str(n) +'.png'
+    img_filename = 'predictions_noFrozenLayers_Train412_414_enhanced_'+ str(n) +'.png'
     print('saving image ', img_filename)
     fig.savefig(img_filename)
