@@ -1,3 +1,17 @@
+import json
+import os
+from eval_utils.average_precision_evaluator import Evaluator
+from data_generator.object_detection_2d_misc_utils import apply_inverse_transforms
+from data_generator.object_detection_2d_geometric_ops import Resize
+from data_generator.object_detection_2d_photometric_ops import ConvertTo3Channels
+from data_generator.object_detection_2d_data_generator import DataGenerator
+from ssd_encoder_decoder.ssd_output_decoder import decode_detections, decode_detections_fast
+from keras_layers.keras_layer_L2Normalization import L2Normalization
+from keras_layers.keras_layer_DecodeDetectionsFast import DecodeDetectionsFast
+from keras_layers.keras_layer_DecodeDetections import DecodeDetections
+from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
+from keras_loss_function.keras_ssd_loss import SSDLoss
+from models.keras_ssd300 import ssd_300
 from distutils import extension
 import sys
 from keras import backend as K
@@ -6,47 +20,55 @@ from keras.preprocessing import image
 from keras.optimizers import Adam
 
 import numpy as np
-import matplotlib
 from numpy import count_nonzero
+
+import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
 
-from models.keras_ssd300 import ssd_300
-from keras_loss_function.keras_ssd_loss import SSDLoss
-from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
-from keras_layers.keras_layer_DecodeDetections import DecodeDetections
-from keras_layers.keras_layer_DecodeDetectionsFast import DecodeDetectionsFast
-from keras_layers.keras_layer_L2Normalization import L2Normalization
-
-from ssd_encoder_decoder.ssd_output_decoder import decode_detections, decode_detections_fast
-
-from data_generator.object_detection_2d_data_generator import DataGenerator
-from data_generator.object_detection_2d_photometric_ops import ConvertTo3Channels
-from data_generator.object_detection_2d_geometric_ops import Resize
-from data_generator.object_detection_2d_misc_utils import apply_inverse_transforms
 
 
-from eval_utils.average_precision_evaluator import Evaluator
 
-#load model
-# TODO: Set the path to the `.h5` file of the model to be loaded.
-#trained on one image, good detections on that img.'  ../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5'
-model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_412_414_enhanced_forReal_epoch-12_loss-4.4861_val_loss-6.9547.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
+# load model
+# model_path = '../output/ssd_300_heavy_machinery/first/checkpoints/ssd_300_heavy_machinery_first_epoch-01_loss-8.4748_val_loss-9.9477.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
+session_record_path = '/home/linuxosprey/ow_keras_ssd2/output/ssd_300_heavy_machinery/no_270_no_276_ssd_aug/train_session0.json'
+eval_session_suffix = 'match_iou_0p2_plot_conf_0p01_same_as_pr_curve'
+if not os.path.exists(session_record_path):
+  print('input session record: ', session_record_path , ' does not exist')
+  sys.exit(-1)
 
-# model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_epoch-02_loss-6.1302_val_loss-6.1017.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
+file = open(session_record_path)
+contents = file.read()
+print('contents = ', contents)
+session_record = json.loads(contents)
+session_record['eval_session_suffix'] = eval_session_suffix
+
+checkpoint_filename_lowest_loss = ''
+min_val_loss = 1e9
+checkpoints_dir = os.path.dirname(session_record['checkpoint_path'])
+for f in os.listdir(checkpoints_dir):
+    if f.find('.h5') >= 0:
+        # split filename into two (using val-loss- delimeter, grab the second one, trim last three chars)
+        val_loss = float(f.split('val_loss-')[1][:-3])
+        if val_loss < min_val_loss:
+            min_val_loss = val_loss
+            checkpoint_filename_lowest_loss = os.path.join(checkpoints_dir, f)
+
+
+model_path = checkpoint_filename_lowest_loss
 
 # We need to create an SSDLoss object in order to pass that to the model loader.
 ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 
-K.clear_session() # Clear previous models from memory.
+K.clear_session()  # Clear previous models from memory.
 
 try:
     model = load_model(model_path, custom_objects={'AnchorBoxes': AnchorBoxes,
-                                                'L2Normalization': L2Normalization,
-                                                'DecodeDetections': DecodeDetections,
-                                                'compute_loss': ssd_loss.compute_loss})
+                                                   'L2Normalization': L2Normalization,
+                                                   'DecodeDetections': DecodeDetections,
+                                                   'compute_loss': ssd_loss.compute_loss})
 except ValueError:
-    print("invalid model file specified:",model_path)
+    print("invalid model file specified:", model_path)
     sys.exit(1)
 except ImportError:
     print('import error! for ', model_path)
@@ -101,8 +123,12 @@ normalize_coords = True
 # for new_layer, layer in zip(new_model.layers[1:], model.layers[1:]):
 #     new_layer.set_weights(layer.get_weights())
 # /home/linuxosprey/ow_keras_ssd/data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5
-#load  data set
-dataset = DataGenerator(hdf5_dataset_path='dataset_HeavyMachine.h5')
+# load  data set
+
+dataset_path = session_record['val_h5_data_path']
+
+dataset = DataGenerator(hdf5_dataset_path=dataset_path)
+session_record['eval_dataset_path'] = dataset_path
 
 img_width = 2048
 img_height = 1500
@@ -110,17 +136,16 @@ convert_to_3_channels = ConvertTo3Channels()
 resize = Resize(height=img_height, width=img_width)
 
 generator = dataset.generate(batch_size=1,
-                                         shuffle=False,
-                                         transformations=[convert_to_3_channels,
-                                                          resize],
-                                         label_encoder=None,
-                                         returns={'processed_images',
-                                                  'filenames',
-                                                  'inverse_transform',
-                                                  'original_images',
-                                                  'original_labels'},
-                                         keep_images_without_gt=False)
-
+                             shuffle=False,
+                             transformations=[convert_to_3_channels,
+                                              resize],
+                             label_encoder=None,
+                             returns={'processed_images',
+                                      'filenames',
+                                      'inverse_transform',
+                                      'original_images',
+                                      'original_labels'},
+                             keep_images_without_gt=False)
 
 
 model_mode = 'training'
@@ -129,13 +154,13 @@ evaluator = Evaluator(model=model,
                       n_classes=n_classes,
                       data_generator=dataset,
                       model_mode=model_mode)
-
+session_record['matching_iou_threshold'] = 0.2
 results = evaluator(img_height=img_height,
                     img_width=img_width,
                     batch_size=1,
                     data_generator_mode='resize',
                     round_confidences=False,
-                    matching_iou_threshold=0.4,
+                    matching_iou_threshold=session_record['matching_iou_threshold'],
                     border_pixels='include',
                     sorting_algorithm='quicksort',
                     average_precision_mode='sample',
@@ -147,80 +172,112 @@ results = evaluator(img_height=img_height,
                     verbose=True)
 
 mean_average_precision, average_precisions, precisions, recalls = results
+
+print('mean_avg prec = ', mean_average_precision)
+print('average_precisions prec = ', average_precisions)
+print('precisions prec = ', np.array(precisions[1]).shape)
+print('recalls prec = ', np.array(recalls[1]).shape)
+
+print('mean_avg prec 1= ', mean_average_precision)
+print('average_precisions prec1 = ', average_precisions)
+print('precisions prec1 = ', precisions)
+print('recalls prec1 = ', recalls)
+
+session_record['mean_average_precision'] = mean_average_precision
+session_record['average_precisions'] =  list(average_precisions)
+session_record['precisions'] =  list(precisions[1])
+session_record['recalls'] =  list(recalls[1])
+
 classes = ['thing']
-print('average precions len = ' , len(average_precisions))
-print(' precisions =',np.array(precisions).shape)
+print('average precions len = ', len(average_precisions))
+print(' precisions =', np.array(precisions).shape)
 
 for i in range(1, len(average_precisions)):
-    print("{:<14}{:<6}{}".format('class:', str(i), ' AP', round(average_precisions[i], 3)))
+    print("{:<14}{:<6}{}".format('class:', str(i),
+          ' AP', round(average_precisions[i], 3)))
     # print("{:<14}{:<6}{}".format(classes[i], 'AP', round(average_precisions[i], 3)))
 
 print()
-print("{:<14}{:<6}{}".format('','mAP', round(mean_average_precision, 3)))
+print("{:<14}{:<6}{}".format('', 'mAP', round(mean_average_precision, 3)))
 
 
 m = max((n_classes + 1) // 2, 2)
 n = 2
 
-fig, cells = plt.subplots(m, n, figsize=(n*8,m*8))
+fig, cells = plt.subplots(m, n, figsize=(n*8, m*8))
 for i in range(m):
     for j in range(n):
-        if n*i+j+1 > n_classes: break
-        cells[i, j].plot(recalls[n*i+j+1], precisions[n*i+j+1], color='blue', linewidth=1.0)
+        if n*i+j+1 > n_classes:
+            break
+        cells[i, j].plot(recalls[n*i+j+1], precisions[n*i+j+1],
+                         color='blue', linewidth=1.0)
         cells[i, j].set_xlabel('recall', fontsize=14)
         cells[i, j].set_ylabel('precision', fontsize=14)
         cells[i, j].grid(True)
-        cells[i, j].set_xticks(np.linspace(0,1,11))
-        cells[i, j].set_yticks(np.linspace(0,1,11))
-        cells[i, j].set_title("{}, AP: {:.3f}".format( n*i+j+1, average_precisions[n*i+j+1]), fontsize=16)
+        cells[i, j].set_xticks(np.linspace(0, 1, 11))
+        cells[i, j].set_yticks(np.linspace(0, 1, 11))
+        cells[i, j].set_title("{}, AP: {:.3f}".format(
+            n*i+j+1, average_precisions[n*i+j+1]), fontsize=16)
+
+
+cnt = 0
+while os.path.exists(os.path.join(session_record['train_output_dir'], 'evaluation_' + str(cnt))):
+    cnt = cnt+1
+
+output_dir = os.path.join(
+    session_record['train_output_dir'], 'evaluation_' + eval_session_suffix + '_' + str(cnt))
+os.makedirs(output_dir)
+session_record['eval_output_dir'] = output_dir
+session_record['precision_recall_figure_path'] = os.path.join(
+    output_dir, session_record['model_name'] + '_' + session_record['session_suffix'] + 'precision_recall_curve.png')
+
+fig.savefig(session_record['precision_recall_figure_path'])
 
 
 
-fig.savefig('train414_412_enhanced_recall_vs_precision_curve.png')
+with open(os.path.join(output_dir, 'evaluation_record.json'), 'w') as output_file:
+    output_file.write(json.dumps(session_record,indent=4,sort_keys=True))
 
-
-
-#predict
+session_record['plot_confidence_thresh'] = 0.2
+# predict
 for n in range(dataset.dataset_size):
-    print('n=',n)
-    batch_images, batch_filenames, batch_inverse_transforms, batch_original_images, batch_original_labels = next(generator)
+    print('n=', n)
+    batch_images, batch_filenames, batch_inverse_transforms, batch_original_images, batch_original_labels = next(
+        generator)
     print('batch_images shape = ', batch_images.shape)
 
     print('predict call')
     y_pred = model.predict(batch_images)
     print('decode_detections call')
-    print('y_pred_shape = ' , y_pred.shape)
+    print('y_pred_shape = ', y_pred.shape)
     y_pred_decoded = decode_detections(y_pred,
-                                   confidence_thresh=0.4,
-                                   iou_threshold=0.4,
-                                   top_k=200,
-                                   normalize_coords=normalize_coords,
-                                   img_height=img_height,
-                                   img_width=img_width)
-    print('y_pred_decoded, len, shape = ' , len(y_pred_decoded), y_pred_decoded[0].shape)
+                                       confidence_thresh=session_record['plot_confidence_thresh'],
+                                       iou_threshold=session_record['matching_iou_threshold'],
+                                       top_k=200,
+                                       normalize_coords=normalize_coords,
+                                       img_height=img_height,
+                                       img_width=img_width)
+    print('y_pred_decoded, len, shape = ', len(
+        y_pred_decoded), y_pred_decoded[0].shape)
     print('apply inverse transforms call')
 
-    y_pred_decoded_inv = apply_inverse_transforms(y_pred_decoded, batch_inverse_transforms)
+    y_pred_decoded_inv = apply_inverse_transforms(
+        y_pred_decoded, batch_inverse_transforms)
     i = 0
     np.set_printoptions(precision=2, suppress=True, linewidth=90)
     print("Predicted boxes:\n")
     print('   class   conf xmin   ymin   xmax   ymax')
     print(y_pred_decoded_inv[i])
 
-    
-
-
     # Visualize the predictions.
 
-
-  
-    fig = plt.figure(figsize=(20,12))
+    fig = plt.figure(figsize=(20, 12))
     plt.imshow(batch_original_images[i])
 
     current_axis = plt.gca()
 
     classes = ['background', 'thing', 'truck', 'pedestrian', 'bicyclist',
-            'traffic_light', 'motorcycle', 'bus', 'stop_sign'] # Just so we can print class names onto the image instead of IDs
+               'traffic_light', 'motorcycle', 'bus', 'stop_sign']  # Just so we can print class names onto the image instead of IDs
 
     # Draw the predicted boxes in blue
     for box in batch_original_labels[i]:
@@ -229,8 +286,10 @@ for n in range(dataset.dataset_size):
         xmax = box[3]
         ymax = box[4]
         label = '{}'.format(classes[int(box[0])])
-        current_axis.add_patch(plt.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, color='green', fill=False, linewidth=2))  
-        current_axis.text(xmin, ymin, label, size='x-large', color='white', bbox={'facecolor':'green', 'alpha':1.0})
+        current_axis.add_patch(plt.Rectangle(
+            (xmin, ymin), xmax-xmin, ymax-ymin, color='green', fill=False, linewidth=2))
+        current_axis.text(xmin, ymin, label, size='x-large',
+                          color='white', bbox={'facecolor': 'green', 'alpha': 1.0})
 
     # Draw the ground truth boxes in green (omit the label for more clarity)
     for box in y_pred_decoded_inv[i]:
@@ -240,10 +299,14 @@ for n in range(dataset.dataset_size):
         ymax = box[5]
 
         label = '{}: {:.2f}'.format(classes[int(box[0])], box[1])
-        current_axis.add_patch(plt.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, color='blue', fill=False, linewidth=2))  
-        current_axis.text(xmin, ymin, label, size='x-large', color='white', bbox={'facecolor':'blue', 'alpha':1.0})
-    
-    
-    img_filename = 'predictions_noFrozenLayers_Train412_414_enhanced_'+ str(n) +'.png'
+        current_axis.add_patch(plt.Rectangle(
+            (xmin, ymin), xmax-xmin, ymax-ymin, color='blue', fill=False, linewidth=2))
+        current_axis.text(xmin, ymin, label, size='x-large',
+                          color='white', bbox={'facecolor': 'blue', 'alpha': 1.0})
+
+    img_filename = os.path.join(
+        output_dir, session_record['model_name'] + '_' + session_record['session_suffix'] + 'predictions_noFrozenLayers_Train412_414_w_Synth_aug_' +
+        str(n) + '.png')
+
     print('saving image ', img_filename)
     fig.savefig(img_filename)
