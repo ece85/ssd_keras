@@ -28,18 +28,18 @@ from matplotlib import pyplot as plt
 
 
 
+K.clear_session()  # Clear previous models from memory.
 
 # load model
 # model_path = '../output/ssd_300_heavy_machinery/first/checkpoints/ssd_300_heavy_machinery_first_epoch-01_loss-8.4748_val_loss-9.9477.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
 session_record_path = '/home/linuxosprey/ow_keras_ssd2/output/ssd_300_heavy_machinery/no_270_no_276_ssd_aug/train_session0.json'
-eval_session_suffix = 'match_iou_0p2_plot_conf_0p01_same_as_pr_curve'
+eval_session_suffix = '3_right_of_way_flights_whitesalmon_agair'
 if not os.path.exists(session_record_path):
   print('input session record: ', session_record_path , ' does not exist')
   sys.exit(-1)
 
 file = open(session_record_path)
 contents = file.read()
-print('contents = ', contents)
 session_record = json.loads(contents)
 session_record['eval_session_suffix'] = eval_session_suffix
 
@@ -57,11 +57,9 @@ for f in os.listdir(checkpoints_dir):
 
 model_path = checkpoint_filename_lowest_loss
 
+
 # We need to create an SSDLoss object in order to pass that to the model loader.
 ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
-
-K.clear_session()  # Clear previous models from memory.
-
 try:
     model = load_model(model_path, custom_objects={'AnchorBoxes': AnchorBoxes,
                                                    'L2Normalization': L2Normalization,
@@ -75,59 +73,75 @@ except ImportError:
     sys.exit(1)
 
 
-# img_height = 300 # Height of the input images
-# img_width = 300 # Width of the input images
-# img_channels = 3 # Number of color channels of the input images
-# subtract_mean = [123, 117, 104] # The per-channel mean of the images in the dataset
-# swap_channels = [2, 1, 0] # The color channel order in the original SSD is BGR, so we should set this to `True`, but weirdly the results are better without swapping.
-# # TODO: Set the number of classes.
-# n_classes = 8 # Number of positive classes, e.g. 20 for Pascal VOC, 80 for MS COCO
-# scales = [0.07, 0.15, 0.33, 0.51, 0.69, 0.87, 1.05] # The anchor box scaling factors used in the original SSD300 for the MS COCO datasets.
-# # scales = [0.1, 0.2, 0.37, 0.54, 0.71, 0.88, 1.05] # The anchor box scaling factors used in the original SSD300 for the Pascal VOC datasets.
-# aspect_ratios = [[1.0, 2.0, 0.5],
-#                  [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
-#                  [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
-#                  [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
-#                  [1.0, 2.0, 0.5],
-#                  [1.0, 2.0, 0.5]] # The anchor box aspect ratios used in the original SSD300; the order matters
-# two_boxes_for_ar1 = True
-# steps = [8, 16, 32, 64, 100, 300] # The space between two adjacent anchor box center points for each predictor layer.
-# offsets = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5] # The offsets of the first anchor box center points from the top and left borders of the image as a fraction of the step size for each predictor layer.
-# clip_boxes = False # Whether or not you want to limit the anchor boxes to lie entirely within the image boundaries
-# variances = [0.1, 0.1, 0.2, 0.2] # The variances by which the encoded target coordinates are scaled as in the original implementation
+img_width = 300
+img_height = 300
+img_channels = 3 # Number of color channels of the input images
+subtract_mean = [26, 32, 33]# The per-channel mean of the images in the dataset
+swap_channels = [2, 1, 0] # The color channel order in the original SSD is BGR, so we should set this to `True`, but weirdly the results are better without swapping.
+# TODO: Set the number of classes.
+n_classes = 8 # Number of positive classes, e.g. 20 for Pascal VOC, 80 for MS COCO
+scales = [0.07, 0.15, 0.33, 0.51, 0.69, 0.87, 1.05] # The anchor box scaling factors used in the original SSD300 for the MS COCO datasets.
+# scales = [0.1, 0.2, 0.37, 0.54, 0.71, 0.88, 1.05] # The anchor box scaling factors used in the original SSD300 for the Pascal VOC datasets.
+aspect_ratios = [[1.0, 2.0, 0.5],
+                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+                 [1.0, 2.0, 0.5, 3.0, 1.0/3.0],
+                 [1.0, 2.0, 0.5],
+                 [1.0, 2.0, 0.5]] # The anchor box aspect ratios used in the original SSD300; the order matters
+two_boxes_for_ar1 = True
+steps = [8, 16, 32, 64, 100, 300] # The space between two adjacent anchor box center points for each predictor layer.
+offsets = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5] # The offsets of the first anchor box center points from the top and left borders of the image as a fraction of the step size for each predictor layer.
+clip_boxes = False # Whether or not you want to limit the anchor boxes to lie entirely within the image boundaries
+variances = [0.1, 0.1, 0.2, 0.2] # The variances by which the encoded target coordinates are scaled as in the original implementation
 normalize_coords = True
 
-# new_img_height = 1500
-# new_img_width = 2048
-# new_model = ssd_300(image_size=(new_img_height, new_img_width, img_channels),
-#                 n_classes=n_classes,
-#                 mode='inference',
-#                 l2_regularization=0.0005,
-#                 scales=scales,
-#                 aspect_ratios_per_layer=aspect_ratios,
-#                 two_boxes_for_ar1=two_boxes_for_ar1,
-#                 steps=steps,
-#                 offsets=offsets,
-#                 clip_boxes=clip_boxes,
-#                 variances=variances,
-#                 normalize_coords=normalize_coords,
-#                 subtract_mean=subtract_mean,
-#                 divide_by_stddev=None,
-#                 swap_channels=swap_channels,
-#                 confidence_thresh=0.1,
-#                 iou_threshold=0.45,
-#                 top_k=200,
-#                 nms_max_output_size=400,
-#                 return_predictor_sizes=False)
+session_record['matching_iou_threshold'] = 0.2
 
-# for new_layer, layer in zip(new_model.layers[1:], model.layers[1:]):
-#     new_layer.set_weights(layer.get_weights())
-# /home/linuxosprey/ow_keras_ssd/data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5
-# load  data set
+model_mode = 'inference'
+new_img_height = 1500
+new_img_width = 2048
 
-dataset_path = session_record['val_h5_data_path']
+scales_scale = float(img_height)/float(new_img_height)
+
+scaled_scales = [elem*scales_scale for elem in scales]
+
+
+new_model = ssd_300(image_size=(new_img_height, new_img_width, img_channels),
+                n_classes=n_classes,
+                mode=model_mode,
+                l2_regularization=0.0005,
+                scales=scaled_scales,
+                aspect_ratios_per_layer=aspect_ratios,
+                two_boxes_for_ar1=two_boxes_for_ar1,
+                steps=steps,
+                offsets=offsets,
+                clip_boxes=clip_boxes,
+                variances=variances,
+                normalize_coords=normalize_coords,
+                subtract_mean=subtract_mean,
+                divide_by_stddev=None,
+                swap_channels=swap_channels,
+                confidence_thresh=0.1,
+                iou_threshold=session_record['matching_iou_threshold'],
+                top_k=200,
+                nms_max_output_size=400,
+                return_predictor_sizes=False)
+
+for new_layer, layer in zip(new_model.layers[1:], model.layers[1:]):
+    new_layer.set_weights(layer.get_weights())
+
+
+adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+ssd_loss2 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+
+
+
+new_model.compile(optimizer=adam, loss=ssd_loss2.compute_loss)
+
+dataset_path = '../data/datasets/right_of_way_test_imagery_w_spoofed_labels/dataset_right_of_way_test_imagery_w_spoofed_labels.h5'#session_record['val_h5_data_path']#
 
 dataset = DataGenerator(hdf5_dataset_path=dataset_path)
+dataset_plot = DataGenerator(hdf5_dataset_path=dataset_path)
 session_record['eval_dataset_path'] = dataset_path
 
 img_width = 2048
@@ -141,20 +155,32 @@ generator = dataset.generate(batch_size=1,
                                               resize],
                              label_encoder=None,
                              returns={'processed_images',
-                                      'filenames',
                                       'inverse_transform',
                                       'original_images',
                                       'original_labels'},
                              keep_images_without_gt=False)
 
+generator_plot = dataset_plot.generate(batch_size=1,
+                             shuffle=False,
+                             transformations=[convert_to_3_channels,
+                                              resize],
+                             label_encoder=None,
+                             returns={'processed_images',
+                                      'inverse_transform',
+                                      'original_images',
+                                      'original_labels',
+                                      'image_ids'},
+                             keep_images_without_gt=False)
 
-model_mode = 'training'
-n_classes = 1
-evaluator = Evaluator(model=model,
+    # batch_images, batch_filenames, batch_inverse_transforms, batch_original_images, batch_original_labels, batch_image_ids = next(
+
+
+n_classes = 2
+evaluator = Evaluator(model=new_model,
                       n_classes=n_classes,
                       data_generator=dataset,
                       model_mode=model_mode)
-session_record['matching_iou_threshold'] = 0.2
+
 results = evaluator(img_height=img_height,
                     img_width=img_width,
                     batch_size=1,
@@ -173,22 +199,22 @@ results = evaluator(img_height=img_height,
 
 mean_average_precision, average_precisions, precisions, recalls = results
 
-print('mean_avg prec = ', mean_average_precision)
-print('average_precisions prec = ', average_precisions)
-print('precisions prec = ', np.array(precisions[1]).shape)
-print('recalls prec = ', np.array(recalls[1]).shape)
+# print('mean_avg prec = ', mean_average_precision)
+# print('average_precisions prec = ', average_precisions)
+# print('precisions prec = ', np.array(precisions[1]).shape)
+# print('recalls prec = ', np.array(recalls[1]).shape)
 
-print('mean_avg prec 1= ', mean_average_precision)
-print('average_precisions prec1 = ', average_precisions)
-print('precisions prec1 = ', precisions)
-print('recalls prec1 = ', recalls)
+# print('mean_avg prec 1= ', mean_average_precision)
+# print('average_precisions prec1 = ', average_precisions)
+# print('precisions prec1 = ', precisions)
+# print('recalls prec1 = ', recalls)
 
 session_record['mean_average_precision'] = mean_average_precision
 session_record['average_precisions'] =  list(average_precisions)
 session_record['precisions'] =  list(precisions[1])
 session_record['recalls'] =  list(recalls[1])
 
-classes = ['thing']
+classes = ['hm']
 print('average precions len = ', len(average_precisions))
 print(' precisions =', np.array(precisions).shape)
 
@@ -199,6 +225,7 @@ for i in range(1, len(average_precisions)):
 
 print()
 print("{:<14}{:<6}{}".format('', 'mAP', round(mean_average_precision, 3)))
+
 
 
 m = max((n_classes + 1) // 2, 2)
@@ -221,7 +248,7 @@ for i in range(m):
 
 
 cnt = 0
-while os.path.exists(os.path.join(session_record['train_output_dir'], 'evaluation_' + str(cnt))):
+while os.path.exists(os.path.join(session_record['train_output_dir'], 'evaluation_' + eval_session_suffix + '_' +  str(cnt))):
     cnt = cnt+1
 
 output_dir = os.path.join(
@@ -241,72 +268,129 @@ with open(os.path.join(output_dir, 'evaluation_record.json'), 'w') as output_fil
 session_record['plot_confidence_thresh'] = 0.2
 # predict
 for n in range(dataset.dataset_size):
+
     print('n=', n)
-    batch_images, batch_filenames, batch_inverse_transforms, batch_original_images, batch_original_labels = next(
-        generator)
-    print('batch_images shape = ', batch_images.shape)
+    batch_images, batch_image_ids,  batch_inverse_transforms, batch_original_images, batch_original_labels,= next(
+        generator_plot)
+    # print('batch_images shape = ', batch_images.shape)
+    # print('batch_original_images shape = ', (batch_original_images))
+    # print('batch_inverse_transforms shape = ', (batch_inverse_transforms))
+    # print('batch_original_labels shape = ', (batch_original_labels))
+    # print('batch_image_ids = ' , batch_image_ids)  
+    # print('batch_images = ' , type(batch_images))
 
     print('predict call')
-    y_pred = model.predict(batch_images)
+    y_pred = new_model.predict(batch_images)
     print('decode_detections call')
     print('y_pred_shape = ', y_pred.shape)
-    y_pred_decoded = decode_detections(y_pred,
-                                       confidence_thresh=session_record['plot_confidence_thresh'],
-                                       iou_threshold=session_record['matching_iou_threshold'],
-                                       top_k=200,
-                                       normalize_coords=normalize_coords,
-                                       img_height=img_height,
-                                       img_width=img_width)
-    print('y_pred_decoded, len, shape = ', len(
-        y_pred_decoded), y_pred_decoded[0].shape)
-    print('apply inverse transforms call')
 
-    y_pred_decoded_inv = apply_inverse_transforms(
-        y_pred_decoded, batch_inverse_transforms)
-    i = 0
-    np.set_printoptions(precision=2, suppress=True, linewidth=90)
-    print("Predicted boxes:\n")
-    print('   class   conf xmin   ymin   xmax   ymax')
-    print(y_pred_decoded_inv[i])
+    if model_mode == 'training':
+      y_pred_decoded = decode_detections(y_pred,
+                                        confidence_thresh=session_record['plot_confidence_thresh'],
+                                        iou_threshold=session_record['matching_iou_threshold'],
+                                        top_k=200,
+                                        normalize_coords=normalize_coords,
+                                        img_height=img_height,
+                                        img_width=img_width)
 
-    # Visualize the predictions.
 
-    fig = plt.figure(figsize=(20, 12))
-    plt.imshow(batch_original_images[i])
+      y_pred_decoded_inv = apply_inverse_transforms(
+          y_pred_decoded, batch_inverse_transforms)
+      i = 0
+      np.set_printoptions(precision=2, suppress=True, linewidth=90)
+      print("Predicted boxes:\n")
+      print('   class   conf xmin   ymin   xmax   ymax')
+      print(y_pred_decoded_inv[i])
 
-    current_axis = plt.gca()
+      # Visualize the predictions.
 
-    classes = ['background', 'thing', 'truck', 'pedestrian', 'bicyclist',
-               'traffic_light', 'motorcycle', 'bus', 'stop_sign']  # Just so we can print class names onto the image instead of IDs
+      fig = plt.figure(figsize=(20, 12))
+      plt.imshow(batch_original_images[i])
 
-    # Draw the predicted boxes in blue
-    for box in batch_original_labels[i]:
-        xmin = box[1]
-        ymin = box[2]
-        xmax = box[3]
-        ymax = box[4]
-        label = '{}'.format(classes[int(box[0])])
-        current_axis.add_patch(plt.Rectangle(
-            (xmin, ymin), xmax-xmin, ymax-ymin, color='green', fill=False, linewidth=2))
-        current_axis.text(xmin, ymin, label, size='x-large',
-                          color='white', bbox={'facecolor': 'green', 'alpha': 1.0})
+      current_axis = plt.gca()
 
-    # Draw the ground truth boxes in green (omit the label for more clarity)
-    for box in y_pred_decoded_inv[i]:
-        xmin = box[2]
-        ymin = box[3]
-        xmax = box[4]
-        ymax = box[5]
+      classes = ['background', 'thing', 'truck', 'pedestrian', 'bicyclist',
+                'traffic_light', 'motorcycle', 'bus', 'stop_sign']  # Just so we can print class names onto the image instead of IDs
 
-        label = '{}: {:.2f}'.format(classes[int(box[0])], box[1])
-        current_axis.add_patch(plt.Rectangle(
-            (xmin, ymin), xmax-xmin, ymax-ymin, color='blue', fill=False, linewidth=2))
-        current_axis.text(xmin, ymin, label, size='x-large',
-                          color='white', bbox={'facecolor': 'blue', 'alpha': 1.0})
+      # Draw the predicted boxes in green
+      for box in batch_original_labels[i]:
+          xmin = box[1]
+          ymin = box[2]
+          xmax = box[3]
+          ymax = box[4]
+          label = '{}'.format(classes[int(box[0])])
+          current_axis.add_patch(plt.Rectangle(
+              (xmin, ymin), xmax-xmin, ymax-ymin, color='green', fill=False, linewidth=2))
+          current_axis.text(xmin, ymin, label, size='x-large',
+                            color='white', bbox={'facecolor': 'green', 'alpha': 1.0})
+
+      # Draw the ground truth boxes in blue (omit the label for more clarity)
+      for box in y_pred_decoded_inv[i]:
+          xmin = box[2]
+          ymin = box[3]
+          xmax = box[4]
+          ymax = box[5]
+
+          label = '{}: {:.2f}'.format(classes[int(box[0])], box[1])
+          current_axis.add_patch(plt.Rectangle(
+              (xmin, ymin), xmax-xmin, ymax-ymin, color='blue', fill=False, linewidth=2))
+          current_axis.text(xmin, ymin, label, size='x-large',
+                            color='white', bbox={'facecolor': 'blue', 'alpha': 1.0})
+
+    elif model_mode == 'inference':
+      confidence_threshold = 0.25
+
+      y_pred_thresh = [y_pred[k][y_pred[k,:,1] > confidence_threshold] for k in range(y_pred.shape[0])]
+
+      np.set_printoptions(precision=2, suppress=True, linewidth=90)
+      print("Predicted boxes:\n")
+      print('   class   conf xmin   ymin   xmax   ymax')
+      print(y_pred_thresh[0])
+
+      # Display the image and draw the predicted boxes onto it.
+    
+      # Set the colors for the bounding boxes
+      colors = plt.cm.hsv(np.linspace(0, 1, 21)).tolist()
+      classes = ['background',
+                'hm', 'bicycle', 'bird', 'boat',
+                'bottle', 'bus', 'car', 'cat',
+                'chair', 'cow', 'diningtable', 'dog',
+                'horse', 'motorbike', 'person', 'pottedplant',
+                'sheep', 'sofa', 'train', 'tvmonitor']
+
+      fig = plt.figure(figsize=(20,12))
+      plt.imshow(batch_original_images[0])
+
+      current_axis = plt.gca()
+
+      # Draw the ground truth boxes in green
+      for box in batch_original_labels[0]:
+          xmin = box[1]
+          ymin = box[2]
+          xmax = box[3]
+          ymax = box[4]
+          label = '{}'.format(classes[int(box[0])])
+          current_axis.add_patch(plt.Rectangle(
+              (xmin, ymin), xmax-xmin, ymax-ymin, color='green', fill=False, linewidth=1))
+          current_axis.text(xmax, ymax, label, size='x-small',
+                            color='white', bbox={'facecolor': 'green', 'alpha': 1.0})
+
+      #draw predicted boxes                      
+      for box in y_pred_thresh[0]:
+          # Transform the predicted bounding boxes for the 300x300 image to the original image dimensions.
+          xmin = box[2] * batch_original_images[0].shape[1] / img_width
+          ymin = box[3] * batch_original_images[0].shape[0] / img_height
+          xmax = box[4] * batch_original_images[0].shape[1] / img_width
+          ymax = box[5] * batch_original_images[0].shape[0] / img_height
+          color = colors[int(box[0])]
+          label = '{}: {:.2f}'.format(classes[int(box[0])], box[1])
+          current_axis.add_patch(plt.Rectangle((xmin, ymin), xmax-xmin, ymax-ymin, color=color, fill=False, linewidth=1))  
+          current_axis.text(xmax, ymax, label, size='x-small', color='white', bbox={'facecolor':color, 'alpha':1.0})
+
 
     img_filename = os.path.join(
-        output_dir, session_record['model_name'] + '_' + session_record['session_suffix'] + 'predictions_noFrozenLayers_Train412_414_w_Synth_aug_' +
-        str(n) + '.png')
+        output_dir, session_record['model_name'] + '_' + session_record['session_suffix'] + '_predictions_' +
+        str(batch_image_ids[0]) + '.png')
 
     print('saving image ', img_filename)
     fig.savefig(img_filename)

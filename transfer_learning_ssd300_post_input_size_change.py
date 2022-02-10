@@ -1,5 +1,4 @@
 import json
-from matplotlib import pyplot as plt
 import os
 import sys
 import tensorflow as tf
@@ -32,6 +31,7 @@ from data_generator.data_augmentation_chain_original_ssd import SSDDataAugmentat
 
 import matplotlib
 matplotlib.use('agg')
+from matplotlib import pyplot as plt
 
 
 train_session = {}
