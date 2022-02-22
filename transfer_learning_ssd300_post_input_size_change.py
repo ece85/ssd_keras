@@ -39,7 +39,7 @@ train_session = {}
 
 model_name = 'ssd_300_heavy_machinery'
 train_session['model_name'] = model_name
-session_suffix = 'no_270_no_276_ssd_aug'
+session_suffix = 'no270_no276_hm_repro_combed_tags'
 train_session['session_suffix'] = session_suffix
 
 output_dir = os.path.join('..','output',model_name,session_suffix)
@@ -62,7 +62,7 @@ img_width = 300  # Width of the input images
 img_channels = 3  # Number of color channels of the input images
 # subtract_mean = [123, 117, 104] # The per-channel mean of the images in the dataset#for original data set (COCO)
 
-# The per-channel mean of the images in the dataset#for enhanced 412 414 dataset
+# The per-channel mean of the images in the dataset
 subtract_mean = [26, 32, 33]
 train_session['bgr_mean'] = subtract_mean
 # The color channel order in the original SSD is BGR, so we should set this to `True`, but weirdly the results are better without swapping.
@@ -210,14 +210,13 @@ val_dataset = DataGenerator(
 
 # Images
 
-images_dir = '../data/datasets/training_data_no270_no276_enhanced_per_image_split/'
+images_dir = '/home/linuxosprey/ow_ssd_keras/data/datasets/training_data_no270_no276_oxnard_suburbanAU_hr_combed/'
 
 train_session['input_data_dir'] = images_dir
-
 # Ground truth
 # all cranes heavy machines from a incomplete version of all tagged data (bad data set for training..i think)  ../data_hm/heavy_machine_labels_train.csv'
-train_labels_filename = images_dir + 'labels_HeavyMachine_train.csv'
-val_labels_filename = images_dir + 'labels_HeavyMachine_val.csv'
+train_labels_filename = images_dir + 'labels_HeavyMachine_train_noNew.csv'
+val_labels_filename = images_dir + 'labels_HeavyMachine_noNew_val.csv'
 
 train_session['train_labels_filename'] = train_labels_filename
 train_session['val_labels_filename'] = val_labels_filename
@@ -235,8 +234,8 @@ val_dataset.parse_csv(images_dir=images_dir,
                                     'xmax', 'ymin', 'ymax', 'class_id'],
                       include_classes='all')
 
-train_data_path = os.path.join(images_dir,'dataset_HeavyMachine_train.h5')
-val_data_path = os.path.join(images_dir,'dataset_HeavyMachine_val.h5')
+train_data_path = os.path.join(images_dir,'heavy_machine_no270_no276_no0090_no496_train.h5')
+val_data_path = os.path.join(images_dir,'heavy_machine_no270_no276_no0090_no496_val.h5')
 train_session['train_h5_data_path'] = train_data_path
 train_session['val_h5_data_path'] = val_data_path
 
