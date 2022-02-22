@@ -426,6 +426,7 @@ history = new_model.fit_generator(generator=train_generator,
                                       val_dataset_size/batch_size),
                                   initial_epoch=initial_epoch)
 
+sys.exit(0)
 
 # 1: Set the generator for the predictions.
 
@@ -441,7 +442,6 @@ predict_generator = val_dataset.generate(batch_size=1,
                                                   'original_labels'},
                                          keep_images_without_gt=False)
 
-sys.exit(0)
 # # # 2: Generate samples.
 
 # # batch_images, batch_filenames, batch_inverse_transforms, batch_original_images, batch_original_labels = next(predict_generator)

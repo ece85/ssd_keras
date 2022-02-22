@@ -180,7 +180,7 @@ generator_plot = dataset_plot.generate(batch_size=1,
 # batch_images, batch_filenames, batch_inverse_transforms, batch_original_images, batch_original_labels, batch_image_ids = next(
 
 
-n_classes = 4
+n_classes = 8
 evaluator = Evaluator(model=new_model,
                       n_classes=n_classes,
                       data_generator=dataset,
