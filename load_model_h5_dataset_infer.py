@@ -30,7 +30,7 @@ from matplotlib import pyplot as plt
 K.clear_session()  # Clear previous models from memory.
 
 # load model
-session_record_path = '/home/linuxosprey/ow_ssd_keras/output/ssd_300_heavy_machinery/no270_no276_w359_90_496_combed_HeavyMachine_Tractor/train_session0.json'
+session_record_path = '/home/linuxosprey/ow_ssd_keras/output/ssd_300_heavy_machinery/single_image_repro/train_session1.json'
 
 eval_session_suffix = 'validation_set_keras2p1p0_freshWeights'#used to prefix some output product names and folder
 if not os.path.exists(session_record_path):
