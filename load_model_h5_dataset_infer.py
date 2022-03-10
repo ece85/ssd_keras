@@ -30,9 +30,9 @@ from matplotlib import pyplot as plt
 K.clear_session()  # Clear previous models from memory.
 
 # load model
-# model_path = '../output/ssd_300_heavy_machinery/first/checkpoints/ssd_300_heavy_machinery_first_epoch-01_loss-8.4748_val_loss-9.9477.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
-session_record_path = '/home/linuxosprey/ow_ssd_keras/output/ssd_300_heavy_machinery/no_270_no_276_ssd_aug/train_session0.json'
-eval_session_suffix = 'validation_set_buffered_precision_recall_curve_rules'
+session_record_path = '/home/linuxosprey/ow_ssd_keras/output/ssd_300_heavy_machinery/no270_no276_w359_90_496_combed_HeavyMachine_Tractor/train_session0.json'
+
+eval_session_suffix = 'validation_set_keras2p1p0_freshWeights'#used to prefix some output product names and folder
 if not os.path.exists(session_record_path):
     print('input session record: ', session_record_path, ' does not exist')
     sys.exit(-1)
@@ -75,7 +75,8 @@ img_width = 300
 img_height = 300
 img_channels = 3  # Number of color channels of the input images
 # The per-channel mean of the images in the dataset
-subtract_mean = [26, 32, 33]
+subtract_mean = [93,100,102]#this should be the mean bgr of the train data this is calculated when splitting all_labels.csv files to their train and val derivative products
+session_record['bgr_mean_eval'] = subtract_mean
 # The color channel order in the original SSD is BGR, so we should set this to `True`, but weirdly the results are better without swapping.
 swap_channels = [2, 1, 0]
 # TODO: Set the number of classes.
@@ -142,8 +143,7 @@ ssd_loss2 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 
 new_model.compile(optimizer=adam, loss=ssd_loss2.compute_loss)
 
-# '/home/linuxosprey/ow_ssd_keras/data/datasets/training_data_no270_no276_oxnard_suburbanAU_hr/dataset_HeavyMachine_val.h5'#'/home/linuxosprey/ow_ssd_keras/data/datasets/suburban_australia/dataset_suburban_australia_spoofed_labels.h5'#'/home/linuxosprey/ow_ssd_keras/data/datasets/hr_imagery_w_spoofed_labels/dataset_hr_spoofed_labels.h5'#
-dataset_path = session_record['val_h5_data_path']
+dataset_path = session_record['val_h5_data_path']# can specify path to a different dataset here. use convert_create_spoof_training_data.py to 
 
 dataset = DataGenerator(hdf5_dataset_path=dataset_path)
 dataset_plot = DataGenerator(hdf5_dataset_path=dataset_path)
@@ -275,6 +275,10 @@ detections_filename = os.path.join(output_dir, 'detections.csv')
 detections_file = open(detections_filename, 'w')
 detections_file.write('frame,xmin,xmax,ymin,ymax,class_id,score\n')
 
+truth_labels_filename = os.path.join(output_dir, 'predict_truth.csv')
+truth_labels = open(truth_labels_filename, 'w')
+truth_labels.write('frame,xmin,xmax,ymin,ymax,class_id\n')
+
 for n in range(dataset.dataset_size):
 
     print('n=', n)
@@ -291,7 +295,7 @@ for n in range(dataset.dataset_size):
     y_pred = new_model.predict(batch_images)
     print('decode_detections call')
     print('y_pred_shape = ', y_pred.shape)
-    plot_images = False
+    plot_images = True
     if model_mode == 'training':
         y_pred_decoded = decode_detections(y_pred,
                                            confidence_thresh=session_record['plot_confidence_thresh'],
@@ -316,7 +320,7 @@ for n in range(dataset.dataset_size):
 
         current_axis = plt.gca()
 
-        classes = ['background', 'thing', 'truck', 'pedestrian', 'bicyclist',
+        classes = ['background', 'hm', 'crane', 'unknown', 'tractor',
                    'traffic_light', 'motorcycle', 'bus', 'stop_sign']  # Just so we can print class names onto the image instead of IDs
 
         # Draw the predicted boxes in green
@@ -345,8 +349,8 @@ for n in range(dataset.dataset_size):
                               color='white', bbox={'facecolor': 'blue', 'alpha': 1.0})
 
     elif model_mode == 'inference':
-        confidence_threshold = 0.25
-
+        confidence_threshold = 0.2
+        session_record['pr_confidence_thresh'] = confidence_threshold
         y_pred_thresh = [y_pred[k][y_pred[k, :, 1] > confidence_threshold]
                          for k in range(y_pred.shape[0])]
 
@@ -360,7 +364,7 @@ for n in range(dataset.dataset_size):
         # Set the colors for the bounding boxes
         colors = plt.cm.hsv(np.linspace(0, 1, 21)).tolist()
         classes = ['background',
-                   'hm', 'bicycle', 'bird', 'boat',
+                   'hm', 'crane', 'unknown', 'tractor',
                    'bottle', 'bus', 'car', 'cat',
                    'chair', 'cow', 'diningtable', 'dog',
                    'horse', 'motorbike', 'person', 'pottedplant',
@@ -383,8 +387,10 @@ for n in range(dataset.dataset_size):
             if plot_images:
               current_axis.add_patch(plt.Rectangle(
                   (xmin, ymin), xmax-xmin, ymax-ymin, color='green', fill=False, linewidth=1))
-              current_axis.text(xmax+50, ymax+50, label, size='x-small',
-                                color='white', bbox={'facecolor': 'green', 'alpha': 1.0})
+              # current_axis.text(xmax+50, ymax+50, label, size='x-small',
+              #                   color='white', bbox={'facecolor': 'green', 'alpha': 1.0})
+            truth_labels.write(batch_image_ids[0] + '.jpg' + ',' + str(xmin) + ',' + str(
+                xmax) + ',' + str(ymin) + ',' + str(ymax) + ',' + str(class_id) + '\n')
 
         # draw predicted boxes
         for box in y_pred_thresh[0]:
@@ -404,8 +410,8 @@ for n in range(dataset.dataset_size):
               label = '{}: {:.2f}'.format(classes[class_id], box[1])
               current_axis.add_patch(plt.Rectangle(
                   (xmin, ymin), xmax-xmin, ymax-ymin, color=color, fill=False, linewidth=1))
-              current_axis.text(xmax+50, ymax, label, size='x-small',
-                                color='white', bbox={'facecolor': color, 'alpha': 1.0})
+              # current_axis.text(xmax+50, ymax+50, label, size='x-small',
+              #                   color='white', bbox={'facecolor': color, 'alpha': 1.0})
 
             
 

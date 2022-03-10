@@ -416,6 +416,7 @@ class Evaluator:
                     ymax = round(box[ymax_pred], 1)
                     prediction = (image_id, confidence, xmin, ymin, xmax, ymax)
                     # Append the predicted box to the results list for its class.
+                    print('results len, class_id = ' , len(results), class_id)
                     results[class_id].append(prediction)
 
         self.prediction_results = results
@@ -529,6 +530,7 @@ class Evaluator:
                     # class ID.
                     class_id = boxes[j, class_id_index]
                     num_gt_per_class[class_id] += 1
+                    #JF num_gt_per_class was of size 2
 
         self.num_gt_per_class = num_gt_per_class
 
@@ -764,11 +766,28 @@ class Evaluator:
             if verbose:
                 print("Computing precisions and recalls, class {}/{}".format(class_id, self.n_classes))
 
-            tp = self.cumulative_true_positives[class_id]
-            fp = self.cumulative_false_positives[class_id]
+            if class_id>=len(self.cumulative_true_positives):
+              tp = np.array(0)
+            else:
+              tp = self.cumulative_true_positives[class_id]
+
+            if class_id>=len(self.cumulative_false_positives):
+              fp = np.array(0)
+            else:
+              fp = self.cumulative_false_positives[class_id]
 
 
+            # tp = self.cumulative_true_positives[class_id]
+
+
+            # fp = self.cumulative_false_positives[class_id]
+
+            # if (tp+fp)==0:
+            #   cumulative_precision = 0
+            # else:
+            print('tp shape, fp shape = ', tp.shape, fp.shape)
             cumulative_precision = np.where(tp + fp > 0, tp / (tp + fp), 0) # 1D array with shape `(num_predictions,)`
+                
             cumulative_recall = tp / self.num_gt_per_class[class_id] # 1D array with shape `(num_predictions,)`
 
             cumulative_precisions.append(cumulative_precision)

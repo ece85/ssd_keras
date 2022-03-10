@@ -10,7 +10,7 @@ weights_source_path = '../data/VGG_coco_SSD_300x300_iter_400000.h5'
 # TODO: Set the path and name for the destination weights file
 #       that you want to create.
 
-weights_destination_path = '../data/VGG_coco_SSD_300x300_iter_400000_subsampled_8_classes2.h5'
+weights_destination_path = '../data/VGG_coco_SSD_300x300_iter_400000_subsampled_8_classes_createAfterNotBeingAbleToReproBestResults.h5'
 
 # Make a copy of the weights file.
 shutil.copy(weights_source_path, weights_destination_path)

@@ -364,6 +364,7 @@ class SSDInputEncoder:
 
             # Set the columns of the matched anchor boxes to zero to indicate that they were matched.
             similarities[:, bipartite_matches] = 0
+            # print('similarities shape, nonzero = ',similarities.shape, np.count_nonzero(similarities))
 
             # Second: Maybe do 'multi' matching, where each remaining anchor box will be matched to its most similar
             #         ground truth box with an IoU of at least `pos_iou_threshold`, or not matched if there is no
@@ -392,7 +393,9 @@ class SSDInputEncoder:
         ##################################################################################
         # Convert box coordinates to anchor box offsets.
         ##################################################################################
-
+        # scaled scales =  [0.014, 0.03, 0.066, 0.102, 0.1379, 0.174, 0.21]
+        #  -12     -11   -10    -9    -8            -7         -6     -5
+        # [cx(gt) cy(gt) w(gt) h(gt) cx(anchor) cy(anchor) w(anchor) h(anchor)]
         if self.coords == 'centroids':
             y_encoded[:,:,[-12,-11]] -= y_encoded[:,:,[-8,-7]] # cx(gt) - cx(anchor), cy(gt) - cy(anchor)
             y_encoded[:,:,[-12,-11]] /= y_encoded[:,:,[-6,-5]] * y_encoded[:,:,[-4,-3]] # (cx(gt) - cx(anchor)) / w(anchor) / cx_variance, (cy(gt) - cy(anchor)) / h(anchor) / cy_variance
@@ -463,15 +466,20 @@ class SSDInputEncoder:
             if (ar == 1):
                 # Compute the regular anchor box for aspect ratio 1.
                 box_height = box_width = this_scale * size
+                # print('box height for aspect ratio 1 = ', box_height)
                 wh_list.append((box_width, box_height))
                 if self.two_boxes_for_ar1:
                     # Compute one slightly larger version using the geometric mean of this scale value and the next.
                     box_height = box_width = np.sqrt(this_scale * next_scale) * size
                     wh_list.append((box_width, box_height))
             else:
+
                 box_width = this_scale * size * np.sqrt(ar)
                 box_height = this_scale * size / np.sqrt(ar)
                 wh_list.append((box_width, box_height))
+                # print('box width=', box_width, ', height=', box_height, ', scale=', this_scale, ' size =' , size, 'ar = ',  ar)
+                # print('normed box width=', box_width/self.img_width, ', height=', box_height/self.img_height, ', scale=', this_scale, ' size =' , size, 'ar = ',  ar)
+
         wh_list = np.array(wh_list)
         n_boxes = len(wh_list)
 
