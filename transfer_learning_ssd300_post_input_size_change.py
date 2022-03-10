@@ -39,7 +39,7 @@ train_session = {}
 
 model_name = 'ssd_300_heavy_machinery'
 train_session['model_name'] = model_name
-session_suffix = 'no270_no276_hm_repro_combed_tags'
+session_suffix = 'single_image_repro_412_69_no_frozen_layers'
 train_session['session_suffix'] = session_suffix
 
 output_dir = os.path.join('..','output',model_name,session_suffix)
@@ -63,7 +63,7 @@ img_channels = 3  # Number of color channels of the input images
 # subtract_mean = [123, 117, 104] # The per-channel mean of the images in the dataset#for original data set (COCO)
 
 # The per-channel mean of the images in the dataset
-subtract_mean = [26, 32, 33]
+subtract_mean = [93,100,102]
 train_session['bgr_mean'] = subtract_mean
 # The color channel order in the original SSD is BGR, so we should set this to `True`, but weirdly the results are better without swapping.
 swap_channels = [2, 1, 0]
@@ -137,7 +137,7 @@ print("Model built.")
 # new_model.summary()
 
 # 2: Load the sub-sampled weights into the model.
-weights_destination_path = '../data/VGG_coco_SSD_300x300_iter_400000_subsampled_8_classes2.h5'
+weights_destination_path = '/home/linuxosprey/ow_ssd_keras/data/VGG_coco_SSD_300x300_iter_400000_subsampled_8_classes_createAfterNotBeingAbleToReproBestResults.h5'
 
 train_session["pre_trained_weights_path"] = weights_destination_path
 # Load the weights that we've just created via sub-sampling.
@@ -167,7 +167,8 @@ classifier_names = ['conv4_3_norm_mbox_conf',
                     'conv8_2_mbox_conf',
                     'conv9_2_mbox_conf']
 
-freeze_layers = True
+freeze_layers = False
+train_session['freeze_layers'] = freeze_layers
 if freeze_layers:
     layers_to_be_frozen = classifier_names
     for layer in new_model.layers:
@@ -197,7 +198,7 @@ if freeze_layers:
     for layer in new_model.layers:
         print('POST layer ', layer.trainable, ' , ', layer.name)
 
-    train_session['trained_layers'] = layers_to_be_frozen
+    train_session['frozen_layers'] = layers_to_be_frozen
 
 # compile the model
 new_model.compile(optimizer=adam, loss=ssd_loss.compute_loss)
@@ -210,13 +211,15 @@ val_dataset = DataGenerator(
 
 # Images
 
-images_dir = '/home/linuxosprey/ow_ssd_keras/data/datasets/training_data_no270_no276_oxnard_suburbanAU_hr_combed/'
+images_dir = '/home/linuxosprey/ow_ssd_keras/data/datasets/training_data_no270_no276_oxnard_suburbanAU_hr_combed_again/'
 
 train_session['input_data_dir'] = images_dir
+train_labels_name = 'hm_single_412_69'
+val_labels_name = 'hm_single_412_69'
 # Ground truth
 # all cranes heavy machines from a incomplete version of all tagged data (bad data set for training..i think)  ../data_hm/heavy_machine_labels_train.csv'
-train_labels_filename = images_dir + 'labels_HeavyMachine_train_noNew.csv'
-val_labels_filename = images_dir + 'labels_HeavyMachine_noNew_val.csv'
+train_labels_filename = images_dir + train_labels_name +'.csv'
+val_labels_filename = images_dir + train_labels_name + '.csv'
 
 train_session['train_labels_filename'] = train_labels_filename
 train_session['val_labels_filename'] = val_labels_filename
@@ -234,8 +237,8 @@ val_dataset.parse_csv(images_dir=images_dir,
                                     'xmax', 'ymin', 'ymax', 'class_id'],
                       include_classes='all')
 
-train_data_path = os.path.join(images_dir,'heavy_machine_no270_no276_no0090_no496_train.h5')
-val_data_path = os.path.join(images_dir,'heavy_machine_no270_no276_no0090_no496_val.h5')
+train_data_path = os.path.join(images_dir,train_labels_name+'.h5')
+val_data_path = os.path.join(images_dir,val_labels_name+'.h5')
 train_session['train_h5_data_path'] = train_data_path
 train_session['val_h5_data_path'] = val_data_path
 
@@ -272,7 +275,7 @@ convert_to_3_channels = ConvertTo3Channels()
 resize = Resize(height=new_img_height, width=new_img_width)
 
 # For the training generator:
-augment_type = 'ssd'
+augment_type = 'vanilla'
 if augment_type == 'ssd':
 
     data_augmentation = SSDDataAugmentation(img_height=new_img_height,
