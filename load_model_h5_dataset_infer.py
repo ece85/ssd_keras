@@ -26,7 +26,9 @@ from data_generator.object_detection_2d_misc_utils import apply_inverse_transfor
 
 #load model
 # TODO: Set the path to the `.h5` file of the model to be loaded.
-model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
+model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_412_069_noAugOneImage_epoch-05_loss-3.9188_val_loss-3.9166.h5'# 412 69 w/frozen layers
+# with freezing non classifying layers (270 208): '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-07_loss-3.4488_val_loss-3.4465.h5'
+#repro of overfitting on 270 208 looks good'../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-04_loss-1.0336_val_loss-0.9510.h5' # ssd300_heavy_machine_noAugOneImage_epoch-01_loss-2.0257_val_loss-0.5414.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
 
 # model_path = '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_epoch-02_loss-6.1302_val_loss-6.1017.h5'# bad results repeated detections in every image ssd300_heavy_machine_epoch-21_loss-5.2081_val_loss-5.1517.h5'
 
@@ -100,7 +102,7 @@ normalize_coords = True
 #     new_layer.set_weights(layer.get_weights())
 # /home/linuxosprey/ow_keras_ssd/data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-03_loss-3.0880_val_loss-1.5296.h5
 #load  data set
-dataset = DataGenerator(hdf5_dataset_path='dataset_heavy_machine_train_min.h5')
+dataset = DataGenerator(hdf5_dataset_path='hm_single_412_69_val.h5')
 
 img_width = 2048
 img_height = 1500
@@ -183,6 +185,6 @@ for n in range(0,100):
         current_axis.text(xmin, ymin, label, size='x-large', color='white', bbox={'facecolor':'blue', 'alpha':1.0})
 
 
-    img_filename = 'ssd3_after_scaled_scales_epochs_'+ str(n) +'.png'
+    img_filename = 'ssd3_REPRO_412_69_freezing_layers_loss3p9_'+ str(n) +'.png'
     print('saving image ', img_filename)
     fig.savefig(img_filename)

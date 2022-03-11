@@ -92,7 +92,7 @@ weights_destination_path = '../data/VGG_coco_SSD_300x300_iter_400000_subsampled_
 img_height = 300 # Height of the input images
 img_width = 300 # Width of the input images
 img_channels = 3 # Number of color channels of the input images
-subtract_mean = [123, 117, 104] # The per-channel mean of the images in the dataset
+subtract_mean = [93, 100, 103] # The per-channel mean of the images in the dataset
 swap_channels = [2, 1, 0] # The color channel order in the original SSD is BGR, so we should set this to `True`, but weirdly the results are better without swapping.
 # TODO: Set the number of classes.
 n_classes = 8 # Number of positive classes, e.g. 20 for Pascal VOC, 80 for MS COCO
@@ -183,6 +183,49 @@ for new_layer, layer in zip(new_model.layers[1:], model.layers[1:]):
 
 print("Weights file loaded:", weights_path)
 
+
+
+classifier_names = ['conv4_3_norm_mbox_conf',
+                    'fc7_mbox_conf',
+                    'conv6_2_mbox_conf',
+                    'conv7_2_mbox_conf',
+                    'conv8_2_mbox_conf',
+                    'conv9_2_mbox_conf']
+
+freeze_layers = True
+# train_session['freeze_layers'] = freeze_layers
+if freeze_layers:
+    layers_to_be_frozen = classifier_names
+    for layer in new_model.layers:
+        if layer.name in layers_to_be_frozen:
+            layer.trainable = True
+            print('training layer ', layer.trainable, ' , ', layer.name)
+            # print('layer input = ', layer.input)
+        else:
+            layer_freezed = False
+            layer_input = str(layer.input)
+            # print('layer input = ' , layer_input)
+            for l in layers_to_be_frozen:
+
+                if layer_input.find(l) >= 0:
+                    layer.trainable = True
+                    layer_freezed = True
+                    layers_to_be_frozen.append(layer.name)
+                    break
+            if not layer_freezed:
+                layer.trainable = False
+
+    for layer in new_model.layers:
+        if layer.name in layers_to_be_frozen and layer.trainable == False:
+            print(' layer not frozen and should be: ', layer.name)
+            sys.exit(-1)
+
+    for layer in new_model.layers:
+        print('POST layer ', layer.trainable, ' , ', layer.name)
+
+    # train_session['frozen_layers'] = layers_to_be_frozen
+
+
 # 3: Instantiate an Adam optimizer and the SSD loss function and compile the model.
 
 adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
@@ -197,11 +240,11 @@ train_dataset = DataGenerator(load_images_into_memory=load_images_in_mem_flag, h
 val_dataset = DataGenerator(load_images_into_memory=load_images_in_mem_flag, hdf5_dataset_path=None)
 
 #Images
-images_dir = '../data_hm/'
+images_dir = '/home/linuxosprey/ow_ssd_keras/data/datasets/training_data_no270_no276_oxnard_suburbanAU_hr_combed_again2'
 
 # Ground truth
-train_labels_filename = '../data_hm/heavy_machine_labels_train_min.csv'
-val_labels_filename   = '../data_hm/heavy_machine_labels_train_min.csv'
+train_labels_filename = os.path.join(images_dir,'output_labels_6','labels_HeavyMachine_tractor_train.csv')
+val_labels_filename   = os.path.join(images_dir,'output_labels_6','labels_HeavyMachine_tractor_val.csv')
 
 train_dataset.parse_csv(images_dir=images_dir,
                         labels_filename=train_labels_filename,
@@ -218,8 +261,8 @@ val_dataset.parse_csv(images_dir=images_dir,
 # option in the constructor, because in that cas the images are in memory already anyway. If you don't
 # want to create HDF5 datasets, comment out the subsequent two function calls.
 if load_images_in_mem_flag == False:
-    train_data_path = 'dataset_heavy_machine_train_min.h5'
-    val_data_path = 'dataset_heavy_machine_val_min.h5'
+    train_data_path = 'HeavyMachine_tractor_train_perImageEnforced.h5'
+    val_data_path = 'HeavyMachine_tractor_train_perImageEnforced.h5'
     if not os.path.exists(train_data_path) or not os.path.exists(val_data_path):
         train_dataset.create_hdf5_dataset(file_path=train_data_path,
                                         resize=False,
@@ -291,12 +334,19 @@ ssd_input_encoder = SSDInputEncoder(img_height=new_img_height,
 # transformations=[ssd_data_augmentation],
 train_generator = train_dataset.generate(batch_size=batch_size,
                                          shuffle=True,
-                                         transformations=[convert_to_3_channels,
-                                                      resize],
+                                         transformations=[ssd_data_augmentation],
                                          label_encoder=ssd_input_encoder,
                                          returns={'processed_images',
                                                   'encoded_labels'},
-                                         keep_images_without_gt=False)
+                                         keep_images_without_gt=False) 
+# train_generator = train_dataset.generate(batch_size=batch_size,
+#                                          shuffle=True,
+#                                          transformations=[convert_to_3_channels,
+#                                                       resize],
+#                                          label_encoder=ssd_input_encoder,
+#                                          returns={'processed_images',
+#                                                   'encoded_labels'},
+#                                          keep_images_without_gt=False)
 # while True:
 #     elem = next(train_generator)
     # print('matched_anchors 0 ', elem[0].shape)
@@ -338,7 +388,7 @@ def lr_schedule(epoch):
 # Define model callbacks.
 
 # TODO: Set the filepath under which you want to save the model.
-model_checkpoint = ModelCheckpoint(filepath='../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_noAugOneImage_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
+model_checkpoint = ModelCheckpoint(filepath='../data/checkpoints/ssd300_heavy_machine/ssd300_hm_tractor_perImageEnforced_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
                                    monitor='val_loss',
                                    verbose=1,
                                    save_best_only=True,
@@ -369,7 +419,7 @@ callbacks = [model_checkpoint,
 # If you're resuming a previous training, set `initial_epoch` and `final_epoch` accordingly.
 initial_epoch   = 0
 final_epoch     = 30
-steps_per_epoch = 100
+steps_per_epoch = train_dataset.get_dataset_size()
 
 history = new_model.fit_generator(generator=train_generator,
                               steps_per_epoch=steps_per_epoch,
