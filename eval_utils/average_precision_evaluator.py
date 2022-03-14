@@ -416,7 +416,6 @@ class Evaluator:
                     ymax = round(box[ymax_pred], 1)
                     prediction = (image_id, confidence, xmin, ymin, xmax, ymax)
                     # Append the predicted box to the results list for its class.
-                    print('results len, class_id = ' , len(results), class_id)
                     results[class_id].append(prediction)
 
         self.prediction_results = results
