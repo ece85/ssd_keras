@@ -1,7 +1,12 @@
 import os
+os.environ['PYTHONHASHSEED']=str(1)
 import sys
+import random
+random.seed(1)
 import tensorflow as tf
+tf.set_random_seed(1)
 import numpy as np
+np.random.seed(1)
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TerminateOnNaN, CSVLogger
 
 from keras.optimizers import Adam
@@ -32,10 +37,7 @@ import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
 
-import tensorflow as tf
 # from keras.backend.tensorflow_backend import set_session
-
-
 
 K.clear_session() # Clear previous models from memory.
 
@@ -240,11 +242,11 @@ train_dataset = DataGenerator(load_images_into_memory=load_images_in_mem_flag, h
 val_dataset = DataGenerator(load_images_into_memory=load_images_in_mem_flag, hdf5_dataset_path=None)
 
 #Images
-images_dir = '/home/linuxosprey/ow_ssd_keras/data/datasets/training_data_no270_no276_oxnard_suburbanAU_hr_combed_again2'
+images_dir = '/home/linuxosprey/ow_ssd_keras/data/datasets/training_data_no270_no276_oxnard_suburbanAU_hr_combed'
 
 # Ground truth
-train_labels_filename = os.path.join(images_dir,'output_labels_6','labels_HeavyMachine_tractor_train.csv')
-val_labels_filename   = os.path.join(images_dir,'output_labels_6','labels_HeavyMachine_tractor_val.csv')
+train_labels_filename = os.path.join(images_dir,'all_labels_hm_tractor_train2.csv')
+val_labels_filename   = os.path.join(images_dir,'all_labels_hm_tractor_val2.csv')
 
 train_dataset.parse_csv(images_dir=images_dir,
                         labels_filename=train_labels_filename,
@@ -261,8 +263,8 @@ val_dataset.parse_csv(images_dir=images_dir,
 # option in the constructor, because in that cas the images are in memory already anyway. If you don't
 # want to create HDF5 datasets, comment out the subsequent two function calls.
 if load_images_in_mem_flag == False:
-    train_data_path = 'HeavyMachine_tractor_train_perImageEnforced.h5'
-    val_data_path = 'HeavyMachine_tractor_train_perImageEnforced.h5'
+    train_data_path = 'all_labels_hm_tractor_train2_oldScript.h5'
+    val_data_path = 'all_labels_hm_tractor_val2_oldScript.h5'
     if not os.path.exists(train_data_path) or not os.path.exists(val_data_path):
         train_dataset.create_hdf5_dataset(file_path=train_data_path,
                                         resize=False,
@@ -388,7 +390,7 @@ def lr_schedule(epoch):
 # Define model callbacks.
 
 # TODO: Set the filepath under which you want to save the model.
-model_checkpoint = ModelCheckpoint(filepath='../data/checkpoints/ssd300_heavy_machine/ssd300_hm_tractor_perImageEnforced_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
+model_checkpoint = ModelCheckpoint(filepath='../data/checkpoints/ssd300_heavy_machine/seed_random2_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
                                    monitor='val_loss',
                                    verbose=1,
                                    save_best_only=True,

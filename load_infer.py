@@ -32,7 +32,7 @@ K.clear_session()  # Clear previous models from memory.
 # load model
 session_record_path = '/home/linuxosprey/ow_ssd_keras/output/ssd_300_heavy_machinery/no270_no276_w359_90_496_combed_HeavyMachine_Tractor/train_session0.json'
 
-eval_session_suffix = 'enfored_split_per_image_train_val_split_VAL'#used to prefix some output product names and folder
+eval_session_suffix = 'repro_best_again3'#used to prefix some output product names and folder
 if not os.path.exists(session_record_path):
     print('input session record: ', session_record_path, ' does not exist')
     sys.exit(-1)
@@ -42,7 +42,7 @@ contents = file.read()
 session_record = json.loads(contents)
 session_record['eval_session_suffix'] = eval_session_suffix
 
-checkpoint_filename_lowest_loss = '../data/checkpoints/ssd300_heavy_machine/ssd300_hm_tractor_perImageEnforced_epoch-02_loss-8.8385_val_loss-9.7547.h5'
+checkpoint_filename_lowest_loss = '../data/checkpoints/ssd300_heavy_machine/ssd300_hm_tractor_oldBestDataset_oldScript_epoch-03_loss-9.0847_val_loss-8.2783.h5'
 #trained on old per iamge split data: '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_tractor_enhanced_combed_again_hm_epoch-01_loss-9.4464_val_loss-7.6128.h5'
 #heavy machine only '../data/checkpoints/ssd300_heavy_machine/ssd300_heavy_machine_enhanced_combed_again_hm_epoch-04_loss-8.0991_val_loss-7.3224.h5'
 # min_val_loss = 1e9
@@ -145,7 +145,7 @@ ssd_loss2 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 
 new_model.compile(optimizer=adam, loss=ssd_loss2.compute_loss)
 
-dataset_path = 'HeavyMachine_tractor_val_perImageEnforced.h5'
+dataset_path = 'all_labels_hm_tractor_val2_oldScript.h5'#'HeavyMachine_tractor_val_perImageEnforced2.h5'
 #session_record['val_h5_data_path']# can specify path to a different dataset here. use convert_create_spoof_training_data.py to 
 # '/home/linuxosprey/ow_ssd_keras/ssd_keras/labels_HeavyMachine_val_oldScript.h5'#
 print('dataset path = ' , dataset_path)
@@ -430,7 +430,8 @@ for n in range(dataset.dataset_size):
 detections_file.close()
 
 # detections_filename = '/home/linuxosprey/ow_ssd_keras/output/ssd_300_heavy_machinery/no270_no276_w359_90_496_combed_Heavy_machine_only_moreTrain_lessVal/evaluation_validation_set_correct_h5_file_0/detections.csv'
-labels_filename = session_record['val_labels_filename']
+labels_filename = truth_labels_filename
+session_record['truths_label_filename'] = labels_filename
 session_record['detections_filename'] = detections_filename
 test_detections = bpr.parse_detections(detections_filename)
 truth_labels = bpr.parse_labels(labels_filename)
