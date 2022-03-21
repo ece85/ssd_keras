@@ -346,6 +346,7 @@ class DataGenerator:
 
             if box[0] == current_file: # If this box (i.e. this line of the CSV file) belongs to the current image file
                 current_labels.append(box[1:])
+                # print('appending label = ', box[1:])
                 if i == len(data)-1: # If this is the last line of the CSV file
                     if random_sample: # In case we're not using the full dataset, but a random sample of it.
                         p = np.random.uniform(0,1)
@@ -394,8 +395,35 @@ class DataGenerator:
                 with Image.open(filename) as image:
                     self.images.append(np.array(image, dtype=np.uint8))
 
+        # print('self.image_ids len after parsing csv = ', len(self.image_ids))
+
         if ret: # In case we want to return these
             return self.images, self.filenames, self.labels, self.image_ids
+
+    #must be called after loading images with labels (for example via parse csv).  doesnt support load im memory option.
+    def add_labeless_images(self, images_dir, image_list_file_path):
+
+        if not images_dir == self.images_dir:
+            print('warning labeless images must be in same image dir as labeled images. Not adding labeless files to datset!!!')
+            return
+
+        # print('image list file path = ', image_list_file_path)
+        with open(image_list_file_path) as file:
+            img_filenames = list(file)
+            # print('len img filename s= ', len(img_filenames))
+        for img_filename in img_filenames:
+            img_file_path = os.path.join(images_dir,img_filename.strip())
+            # print('img_file_path = ', img_file_path)
+            if os.path.exists(img_file_path):
+                # print('appending labeless image to dataset ', img_file_path)
+                self.filenames.append(img_file_path)
+                self.labels.append([[0,100,100,200,200]])#append dummy label
+                self.image_ids.append(img_filename.split('.')[0])
+
+        self.dataset_size = len(self.filenames)
+        self.dataset_indices = np.arange(self.dataset_size, dtype=np.int32)
+
+        # print('self.image_ids len after adding labeless = ', len(self.image_ids))
 
     def parse_xml(self,
                   images_dirs,
@@ -813,7 +841,7 @@ class DataGenerator:
 
             # Store the image ID if we have one.
             if not (self.image_ids is None):
-
+                # print('adding image id: ',self.image_ids[i])
                 hdf5_image_ids[i] = self.image_ids[i]
 
             # Store the evaluation-neutrality annotations if we have any.
@@ -996,10 +1024,20 @@ class DataGenerator:
             # 3) Else, if we have neither of the above, we'll have to load the individual image
             #    files from disk.
             batch_indices = self.dataset_indices[current:current+batch_size]
+            
+            # print('batch index = ', batch_indices)
+            # print('images size = ', len(self.hdf5_dataset['images']))
+            # print('indices size = ', len(self.dataset_indices))
+            # print('images id  =  ', self.hdf5_dataset['image_ids'][batch_indices[0]])
+            # print('images id all  =  ', self.hdf5_dataset['image_ids'])
+            # for i in range(len(self.hdf5_dataset['image_ids'])):
+            #     print('images id =  ', self.hdf5_dataset['image_ids'][i])
+            #     print('images id type=  ', type(self.hdf5_dataset['image_ids'][i]))
             if not (self.images is None):
                 for i in batch_indices:
                     batch_X.append(self.images[i])
                 if not (self.filenames is None):
+                    # print('batch file names is not none! = ', batch_filenames)
                     batch_filenames = self.filenames[current:current+batch_size]
                 else:
                     batch_filenames = None
@@ -1007,8 +1045,10 @@ class DataGenerator:
                 for i in batch_indices:
                     batch_X.append(self.hdf5_dataset['images'][i].reshape(self.hdf5_dataset['image_shapes'][i]))
                 if not (self.filenames is None):
+                    # print('h5 dataset, self.filenames = ', self.filenames)
                     batch_filenames = self.filenames[current:current+batch_size]
                 else:
+                    # print('h5 dataset, NO self.filenames')
                     batch_filenames = None
             else:
                 batch_filenames = self.filenames[current:current+batch_size]
@@ -1018,7 +1058,9 @@ class DataGenerator:
 
             # Get the labels for this batch (if there are any).
             if not (self.labels is None):
+                
                 batch_y = deepcopy(self.labels[current:current+batch_size])
+                # print('labels = ', batch_y)
             else:
                 batch_y = None
 
@@ -1054,6 +1096,7 @@ class DataGenerator:
                     batch_y[i] = np.array(batch_y[i])
                     # If this image has no ground truth boxes, maybe we don't want to keep it in the batch.
                     if (batch_y[i].size == 0) and not keep_images_without_gt:
+                        print('removing image with no truth boxes!')
                         batch_items_to_remove.append(i)
                         batch_inverse_transforms.append([])
                         continue
@@ -1074,6 +1117,7 @@ class DataGenerator:
                                 batch_X[i], batch_y[i] = transform(batch_X[i], batch_y[i])
 
                             if batch_X[i] is None: # In case the transform failed to produce an output image, which is possible for some random transforms.
+                                print('bad transofrm!! removing image')
                                 batch_items_to_remove.append(i)
                                 batch_inverse_transforms.append([])
                                 continue
@@ -1093,15 +1137,16 @@ class DataGenerator:
                 #########################################################################################
 
                 if not (self.labels is None):
-
+                    # print('labels type = ', type(self.labels), ' labels = ', self.labels)
                     xmin = self.labels_format['xmin']
                     ymin = self.labels_format['ymin']
                     xmax = self.labels_format['xmax']
                     ymax = self.labels_format['ymax']
-
+                    # print('xmin, xmax, ymin, ymax: ', xmin, xmax, ymin, ymax)
+                    # print('llllabeles = ', batch_y)
                     if np.any(batch_y[i][:,xmax] - batch_y[i][:,xmin] <= 0) or np.any(batch_y[i][:,ymax] - batch_y[i][:,ymin] <= 0):
                         if degenerate_box_handling == 'warn':
-                            warnings.warn("Detected degenerate ground truth bounding boxes for batch item {} with bounding boxes {}, ".format(i, batch_y[i]) +
+                            warnings.warn("Detected degenerate ground truth boundin060g boxes for batch item {} with bounding boxes {}, ".format(i, batch_y[i]) +
                                           "i.e. bounding boxes where xmax <= xmin and/or ymax <= ymin. " +
                                           "This could mean that your dataset contains degenerate ground truth boxes, or that any image transformations you may apply might " +
                                           "result in degenerate ground truth boxes, or that you are parsing the ground truth in the wrong coordinate format." +
@@ -1109,6 +1154,7 @@ class DataGenerator:
                         elif degenerate_box_handling == 'remove':
                             batch_y[i] = box_filter(batch_y[i])
                             if (batch_y[i].size == 0) and not keep_images_without_gt:
+                                print('degenerat box detected!!!')
                                 batch_items_to_remove.append(i)
 
             #########################################################################################
@@ -1119,6 +1165,8 @@ class DataGenerator:
                 for j in sorted(batch_items_to_remove, reverse=True):
                     # This isn't efficient, but it hopefully shouldn't need to be done often anyway.
                     batch_X.pop(j)
+                    # print('batch_filenames = ', batch_filenames)
+
                     batch_filenames.pop(j)
                     if batch_inverse_transforms: batch_inverse_transforms.pop(j)
                     if not (self.labels is None): batch_y.pop(j)
